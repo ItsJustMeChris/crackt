@@ -1,0 +1,12 @@
+{
+  "required": false,
+  "package": "mod.crackt.mixin.client",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ParticleEngineMixin",
+    "ClientLevelMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
