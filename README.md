@@ -21,11 +21,11 @@ Vein-aware ore cracking for Minecraft 1.21.10 on Fabric. Swing a pick at any ore
 3. Launch the game; no config screen is needed.
 
 ## Usage
-- Break any log with an axe; progress is tracked per tree.
-- Keep swinging the same log until the quota is met; the rest of the tree is felled automatically.
-- If your axe breaks mid-timber, only the logs you could afford are felled—finish the remainder with a fresh tool.
-- Hold `Shift` while breaking to disable timbering for that action.
-- Player-placed log piles without leaves nearby will not be felled.
+- Swing a pick at any ore block; progress is tracked per connected vein.
+- Keep swinging the same ore until the quota is met; the entire vein pops once your contribution is enough.
+- If your pick breaks mid-crack, the shrinking cluster stays—grab a new pick to finish the vein.
+- Punching or shift-breaking the cracking cluster converts your visible progress into a partial payout of ores.
+- Player-placed ore piles outside the vein tag won't be affected.
 
 ## Building from source
 ```sh

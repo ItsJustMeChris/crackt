@@ -24,6 +24,7 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -50,20 +51,24 @@ public final class OreCracker {
 	private static boolean beforeBreak(Level level, Player player, BlockPos pos, BlockState state, /* nullable */ Object blockEntity) {
 		if (level.isClientSide()) return true;
 		if (PROCESSING.get()) return true;
-		if (player.isShiftKeyDown()) return true; // allow vanilla while crouching
+
+		ItemStack held = player.getMainHandItem();
+		boolean isCluster = state.is(CracktBlocks.CRACKING_CLUSTER);
+
+		if (player.isShiftKeyDown() || !held.is(ItemTags.PICKAXES)) {
+			if (isCluster && handleManualClusterBreak(level, player, pos, state)) {
+				return false; // converted into partial cracking
+			}
+			return true; // vanilla while crouching or without a pick
+		}
 
 		boolean isOre = isOreBlock(state);
-		boolean isCluster = state.is(CracktBlocks.CRACKING_CLUSTER);
 
 		if (!isOre && !isCluster) {
 			Session existing = findSession(level, pos);
 			if (existing != null) {
 				SESSIONS.remove(existing.key());
 			}
-			return true;
-		}
-		ItemStack held = player.getMainHandItem();
-		if (!held.is(ItemTags.PICKAXES)) {
 			return true;
 		}
 
@@ -77,12 +82,14 @@ public final class OreCracker {
 		}
 
 		applyDurabilityLoss(player, held, 1); // pay for the swing even if we don't finish
-		if (held.isEmpty()) {
-			return true;
-		}
+		boolean brokePick = held.isEmpty();
 
 		session.recordAttempt();
 		updateClusterVisual(level, session);
+		if (brokePick) {
+			// Keep the cracking cluster and progress; player needs a fresh pick to continue.
+			return false;
+		}
 		if (!session.isComplete()) {
 			return false; // cancel vanilla break; keep cracking with repeat swings
 		}
@@ -272,6 +279,76 @@ public final class OreCracker {
 			delta = delta.scale(max / len);
 		}
 		return delta;
+	}
+
+	/**
+	 * When a player punches or shift-breaks the cracking cluster, convert visible progress
+	 * into partial cracking instead of deleting the cluster.
+	 *
+	 * @return true if vanilla breaking was handled and should be cancelled.
+	 */
+	private static boolean handleManualClusterBreak(Level level, Player player, BlockPos pos, BlockState state) {
+		Session session = findSession(level, pos);
+		if (session == null) {
+			session = buildSession(level, pos, state, true);
+			if (session == null) {
+				return false;
+			}
+			SESSIONS.put(session.key(), session);
+		}
+
+		double progress = session.requiredHits == 0 ? 0.0 : (double) session.hits() / (double) session.requiredHits;
+		if (progress <= 0.0) {
+			int stage = state.getValue(CrackingClusterBlock.STAGE);
+			int stages = state.getValue(CrackingClusterBlock.STAGES);
+			progress = stages > 0 ? (double) stage / (double) stages : 0.0;
+		}
+		progress = Mth.clamp(progress, 0.0, 1.0);
+
+		int target = computePartialCrackTarget(session, progress);
+		if (target <= 0) {
+			level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+			SESSIONS.remove(session.key());
+			return true;
+		}
+
+		crackSomeOres(level, player, session, target);
+		level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+		SESSIONS.remove(session.key());
+		return true;
+	}
+
+	private static int computePartialCrackTarget(Session session, double progress) {
+		if (session.originals.isEmpty()) return 0;
+		int target = (int) Math.floor(progress * session.originals.size());
+		if (progress > 0.0 && target == 0) {
+			target = 1; // show at least one cracked block if any progress exists
+		}
+		return Math.min(target, session.originals.size());
+	}
+
+	private static int crackSomeOres(Level level, Player player, Session session, int target) {
+		List<Map.Entry<BlockPos, BlockState>> entries = new ArrayList<>(session.originals.entrySet());
+		entries.sort(Comparator
+			.<Map.Entry<BlockPos, BlockState>>comparingInt(e -> e.getKey().getY())
+			.thenComparingInt(e -> e.getKey().getX())
+			.thenComparingInt(e -> e.getKey().getZ()));
+
+		int cracked = 0;
+		for (Map.Entry<BlockPos, BlockState> entry : entries) {
+			if (cracked >= target) break;
+			BlockPos orePos = entry.getKey();
+			BlockState original = entry.getValue();
+
+			if (level.getBlockState(orePos).isAir()) {
+				continue; // already removed
+			}
+
+			Block.dropResources(original, level, orePos, level.getBlockEntity(orePos), player, player.getMainHandItem());
+			level.setBlock(orePos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+			cracked++;
+		}
+		return cracked;
 	}
 
 	private static boolean isOreBlock(BlockState state) {
