@@ -9,6 +9,7 @@ import net.minecraft.core.BlockPos;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
  * Ensures block break/hit particles use the cracking cluster's display state.
@@ -20,9 +21,15 @@ public abstract class ClientLevelMixin {
 		return swapState((ClientLevel)(Object)this, state, pos);
 	}
 
-	@ModifyVariable(method = "addBreakingBlockEffect", at = @At("HEAD"), argsOnly = true)
-	private BlockState crackt$swapHitState(BlockState state, BlockPos pos) {
-		return swapState((ClientLevel)(Object)this, state, pos);
+	@Redirect(
+		method = "addBreakingBlockEffect",
+		at = @At(
+			value = "INVOKE",
+			target = "Lnet/minecraft/client/multiplayer/ClientLevel;getBlockState(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/block/state/BlockState;"
+		)
+	)
+	private BlockState crackt$swapHitState(ClientLevel level, BlockPos pos) {
+		return swapState(level, level.getBlockState(pos), pos);
 	}
 
 	private static BlockState swapState(ClientLevel level, BlockState original, BlockPos pos) {
