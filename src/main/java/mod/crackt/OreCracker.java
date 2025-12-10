@@ -2,8 +2,6 @@ package mod.crackt;
 
 import mod.crackt.block.CrackingClusterBlock;
 import mod.crackt.block.CrackingClusterBlockEntity;
-import mod.crackt.CracktBlocks;
-import mod.crackt.CracktNetworking;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
