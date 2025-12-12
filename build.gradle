@@ -3,7 +3,7 @@ plugins {
 	id 'maven-publish'
 }
 
-version = project.mod_version
+version = "${project.mod_version}+mc${project.minecraft_version}"
 group = project.maven_group
 
 base {
@@ -30,6 +30,37 @@ loom {
 
 }
 
+// Inject version-specific compat source roots (e.g., src/main/java_v1.21.11)
+def mcCompatTag = "v${project.minecraft_version}"
+def mainCompatDir = file("src/main/java_${mcCompatTag}")
+def clientCompatDir = file("src/client/java_${mcCompatTag}")
+
+// Decide Java target based on Minecraft version:
+// - MC 1.21.x and newer require Java 21
+// - MC 1.20.x and below stay on Java 17
+def parseMinor = { String mcVer ->
+	def parts = mcVer.tokenize('.')
+	if (parts.size() < 2) return 0
+	def minorRaw = parts[1].replaceAll(/[^0-9].*/, "")
+	return minorRaw.isInteger() ? minorRaw.toInteger() : 0
+}
+def mcMinor = parseMinor(project.minecraft_version)
+def javaTarget = mcMinor >= 21 ? 21 : 17
+def mixinCompat = javaTarget >= 21 ? "JAVA_21" : "JAVA_17"
+
+sourceSets {
+	main {
+		if (mainCompatDir.exists()) {
+			java.srcDir(mainCompatDir)
+		}
+	}
+	client {
+		if (clientCompatDir.exists()) {
+			java.srcDir(clientCompatDir)
+		}
+	}
+}
+
 dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
@@ -41,16 +72,36 @@ dependencies {
 	
 }
 
-processResources {
-	inputs.property "version", project.version
+def expandResources = { task ->
+	task.inputs.properties(
+		version: project.version,
+		minecraft_version: project.minecraft_version,
+		loader_version: project.loader_version,
+		java_version: javaTarget,
+		mixin_compat: mixinCompat
+	)
 
-	filesMatching("fabric.mod.json") {
-		expand "version": inputs.properties.version
+	task.filesMatching("fabric.mod.json") {
+		expand(
+			version: inputs.properties.version,
+			minecraft_version: project.minecraft_version,
+			loader_version: project.loader_version,
+			java_version: javaTarget
+		)
+	}
+
+	task.filesMatching("crackt.client.mixins.json") {
+		expand(
+			mixin_compat: mixinCompat
+		)
 	}
 }
 
+tasks.named("processResources").configure(expandResources)
+tasks.named("processClientResources").configure(expandResources)
+
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 21
+	it.options.release = javaTarget
 }
 
 java {
@@ -59,8 +110,11 @@ java {
 	// If you remove this line, sources will not be generated.
 	withSourcesJar()
 
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(javaTarget)
+	}
+	sourceCompatibility = JavaVersion.toVersion(javaTarget)
+	targetCompatibility = JavaVersion.toVersion(javaTarget)
 }
 
 jar {
@@ -87,4 +141,67 @@ publishing {
 		// The repositories here will be used for publishing your artifact, not for
 		// retrieving dependencies.
 	}
+}
+
+// Maintenance helpers (keep in one place to make retargeting MC versions easier)
+tasks.register("purgeLoomCache", Delete) {
+	group = "maintenance"
+	description = "Remove Loom/Minecraft caches so mappings and jars are freshly pulled next build."
+	delete(file(".gradle/loom-cache"))
+}
+
+tasks.register("purgeRuns", Delete) {
+	group = "maintenance"
+	description = "Delete run/ client/server working directories."
+	delete(file("run"))
+}
+
+tasks.register("purgeBin", Delete) {
+	group = "maintenance"
+	description = "Delete local bin/ scripts/artifacts (keeps wrapper)."
+	delete(file("bin"))
+}
+
+tasks.register("deepClean") {
+	group = "maintenance"
+	description = "Stop daemons, clean build, and purge Loom caches/run/bin."
+	dependsOn("clean", "purgeLoomCache", "purgeRuns", "purgeBin")
+	doLast {
+		// stop running daemons to avoid stale state between version bumps
+		gradle.startParameter.taskNames = []
+		println("Hint: run './gradlew --stop' to end daemons if you see stale caches.")
+	}
+}
+
+// --- Version profile helpers -------------------------------------------------
+def loadProfile = { String profileName ->
+	def profileFile = file("gradle/profiles/${profileName}.properties")
+	if (!profileFile.exists()) {
+		throw new GradleException("Profile '${profileName}' not found at ${profileFile}")
+	}
+	Properties props = new Properties()
+	file("gradle.properties").withInputStream { props.load(it) }
+	Properties overrideProps = new Properties()
+	profileFile.withInputStream { overrideProps.load(it) }
+	overrideProps.each { k, v -> props.setProperty(k as String, v as String) }
+	props.store(new FileOutputStream(file("gradle.properties")), null)
+	println("Applied profile '${profileName}' to gradle.properties")
+}
+
+tasks.register("useMc12111") {
+	group = "maintenance"
+	description = "Apply gradle/profiles/1.21.11.properties to gradle.properties"
+	doLast { loadProfile("1.21.11") }
+}
+
+tasks.register("useMc12110") {
+	group = "maintenance"
+	description = "Apply gradle/profiles/1.21.10.properties to gradle.properties"
+	doLast { loadProfile("1.21.10") }
+}
+
+tasks.register("useMc1201") {
+	group = "maintenance"
+	description = "Apply gradle/profiles/1.20.1.properties to gradle.properties"
+	doLast { loadProfile("1.20.1") }
 }

@@ -1,6 +1,6 @@
 # Crackt (Fabric)
 
-Vein-aware ore cracking for Minecraft 1.21.11-rc3 on Fabric. Swing a pick at any ore; a shrinking core appears, progress is shared, and the entire connected vein pops once you've contributed enough hits.
+Vein-aware ore cracking for Fabric. Swing a pick at any ore; a shrinking core appears, progress is shared, and the entire connected vein pops once you've contributed enough hits.
 
 ## Features
 - Shared effort: crack progress is tracked per vein, so multiple players can contribute swings on the same ore.
@@ -10,13 +10,13 @@ Vein-aware ore cracking for Minecraft 1.21.11-rc3 on Fabric. Swing a pick at any
 - Client-light: no config screens; only a small BER and payload for syncing the shrinking core.
 
 ## Requirements
-- Minecraft `1.21.11-rc3`
+- Minecraft `1.20.1` / `1.21.10` / `1.21.11`
 - Fabric Loader `>=0.18.1`
-- Fabric API `0.139.4+1.21.11` (or newer for this MC version)
-- Java 21
+- Fabric API for your MC version
+- Java 21 (use Java 17 when building the 1.20.x profile)
 
 ## Install (players)
-1. Install Fabric Loader for 1.21.11-rc3.
+1. Install Fabric Loader for your Minecraft version.
 2. Place `crackt-<version>.jar` (from `build/libs`) and Fabric API in your `mods/` folder.
 3. Launch the game; no config screen is needed.
 
@@ -29,6 +29,11 @@ Vein-aware ore cracking for Minecraft 1.21.11-rc3 on Fabric. Swing a pick at any
 
 ## Building from source
 ```sh
+# Switch versions (writes to gradle.properties)
+./gradlew useMc12111
+# ./gradlew useMc12110
+# ./gradlew useMc1201
+
 ./gradlew build
 ```
 Outputs are under `build/libs/` (`-dev` jars are for development, the remapped jar is for players/servers).
@@ -38,5 +43,5 @@ Outputs are under `build/libs/` (`-dev` jars are for development, the remapped j
 - Ore cracking logic lives in `src/main/java/mod/crackt/OreCracker.java`.
 
 ## Known limits
-- Hard cap of 256 logs per tree scan.
-- No configuration file yet; behavior is fixed (shift-to-skip, leaf check, caps).
+- Hard cap of 128 ores per vein scan.
+- No configuration file yet; behavior is fixed (shift-to-skip, partial payout on cluster break, caps).
