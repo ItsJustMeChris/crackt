@@ -171,15 +171,17 @@ public final class OreCracker {
 
 	private static int crackRemainingWithDurability(Level level, Player player, Session session, BlockPos alreadyBroken, ItemStack tool) {
 		int cracked = 0;
+		int remainingDurability = Math.max(0, session.originals.size() - session.requiredHits);
 
 		for (Map.Entry<BlockPos, BlockState> entry : session.originals.entrySet()) {
 			BlockPos pos = entry.getKey();
 			if (pos.equals(alreadyBroken)) continue;
 
-			if (!player.isCreative()) {
+			if (!player.isCreative() && remainingDurability > 0) {
 				if (tool.isEmpty()) break;
 				applyDurabilityLoss(player, tool, 1);
-				if (tool.isEmpty()) break;
+				remainingDurability--;
+				if (tool.isEmpty() && remainingDurability > 0) break;
 			}
 
 			BlockState original = entry.getValue();
