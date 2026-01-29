@@ -10,7 +10,7 @@ Vein-aware ore cracking for Fabric. Swing a pick at any ore; a shrinking core ap
 - Client-light: no config screens; only a small BER and payload for syncing the shrinking core.
 
 ## Requirements
-- Minecraft `1.20.1` / `1.21.10` / `1.21.11`
+- Minecraft `1.20.1` / `1.21.8` / `1.21.10` / `1.21.11`
 - Fabric Loader `>=0.18.1`
 - Fabric API for your MC version
 - Java 21 (use Java 17 when building the 1.20.x profile)
@@ -31,6 +31,7 @@ Vein-aware ore cracking for Fabric. Swing a pick at any ore; a shrinking core ap
 ```sh
 # Switch versions (writes to gradle.properties)
 ./gradlew useMc12111
+# ./gradlew useMc1218
 # ./gradlew useMc12110
 # ./gradlew useMc1201
 
