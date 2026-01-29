@@ -39,7 +39,7 @@ public final class OreCracker {
 	private static final BlockPos[] NEIGHBOR_OFFSETS = buildNeighborOffsets();
 	private static final Map<SessionKey, Session> SESSIONS = new HashMap<>();
 	private static final ThreadLocal<Boolean> PROCESSING = ThreadLocal.withInitial(() -> false);
-	private static final TagKey<Block> COMMON_ORES = TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath("c", "ores"));
+	private static final TagKey<Block> COMMON_ORES = TagKey.create(Registries.BLOCK, new ResourceLocation("c", "ores"));
 
 	private OreCracker() {}
 
