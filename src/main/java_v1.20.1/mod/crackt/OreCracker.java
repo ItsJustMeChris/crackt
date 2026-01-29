@@ -7,6 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
@@ -17,6 +18,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
@@ -37,7 +39,7 @@ public final class OreCracker {
 	private static final BlockPos[] NEIGHBOR_OFFSETS = buildNeighborOffsets();
 	private static final Map<SessionKey, Session> SESSIONS = new HashMap<>();
 	private static final ThreadLocal<Boolean> PROCESSING = ThreadLocal.withInitial(() -> false);
-	private static final TagKey<Block> COMMON_ORES = TagKey.create(Registries.BLOCK, new ResourceLocation("c", "ores"));
+	private static final TagKey<Block> COMMON_ORES = TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath("c", "ores"));
 
 	private OreCracker() {}
 
@@ -79,11 +81,28 @@ public final class OreCracker {
 			SESSIONS.put(session.key(), session);
 		}
 
+		// Prune any ores that were manually broken and recalculate requirements
+		if (!session.pruneAndRecalculate(level)) {
+			// All ores gone, just remove the cluster
+			level.setBlock(session.key().base(), Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+			SESSIONS.remove(session.key());
+			return false;
+		}
+
 		applyDurabilityLoss(player, held, 1); // pay for the swing even if we don't finish
 		boolean brokePick = held.isEmpty();
 
 		session.recordAttempt();
 		updateClusterVisual(level, session);
+
+		// Play crack sound for all nearby players
+		BlockState originalForSound = session.anyOriginal();
+		if (originalForSound != null) {
+			SoundType soundType = originalForSound.getSoundType();
+			level.playSound(null, pos, soundType.getHitSound(), SoundSource.BLOCKS,
+				(soundType.getVolume() + 1.0F) / 2.0F, soundType.getPitch() * 0.8F);
+		}
+
 		if (brokePick) {
 			// Keep the cracking cluster and progress; player needs a fresh pick to continue.
 			return false;
@@ -97,7 +116,9 @@ public final class OreCracker {
 		if (baseOriginal != null) {
 			Block.dropResources(baseOriginal, level, basePos, level.getBlockEntity(basePos), player, player.getMainHandItem());
 		}
-		level.setBlock(basePos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+		// Play break sound/particles for all nearby players
+		level.levelEvent(2001, basePos, Block.getId(baseOriginal != null ? baseOriginal : level.getBlockState(basePos)));
+		level.setBlock(basePos, Blocks.AIR.defaultBlockState(), 3);
 
 		PROCESSING.set(true);
 		try {
@@ -159,7 +180,7 @@ public final class OreCracker {
 			originals.put(current, state);
 
 			for (BlockPos offset : NEIGHBOR_OFFSETS) {
-				BlockPos next = current.offset(offset.getX(), offset.getY(), offset.getZ());
+				BlockPos next = current.offset(offset);
 				if (!originals.containsKey(next) && level.getBlockState(next).getBlock() == targetBlock) {
 					queue.add(next);
 				}
@@ -177,6 +198,11 @@ public final class OreCracker {
 			BlockPos pos = entry.getKey();
 			if (pos.equals(alreadyBroken)) continue;
 
+			// Skip if already removed (prevents dupe if ores were manually broken)
+			if (!isOreBlock(level.getBlockState(pos))) {
+				continue;
+			}
+
 			if (!player.isCreative() && remainingDurability > 0) {
 				if (tool.isEmpty()) break;
 				applyDurabilityLoss(player, tool, 1);
@@ -186,7 +212,9 @@ public final class OreCracker {
 
 			BlockState original = entry.getValue();
 			Block.dropResources(original, level, pos, level.getBlockEntity(pos), player, player.getMainHandItem());
-			level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+			// Play break sound/particles for all nearby players
+			level.levelEvent(2001, pos, Block.getId(original));
+			level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
 			cracked++;
 		}
 
@@ -345,7 +373,9 @@ public final class OreCracker {
 			}
 
 			Block.dropResources(original, level, orePos, level.getBlockEntity(orePos), player, player.getMainHandItem());
-			level.setBlock(orePos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+			// Play break sound/particles for all nearby players
+			level.levelEvent(2001, orePos, Block.getId(original));
+			level.setBlock(orePos, Blocks.AIR.defaultBlockState(), 3);
 			cracked++;
 		}
 		return cracked;
@@ -380,8 +410,8 @@ public final class OreCracker {
 	private static final class Session {
 		private final SessionKey key;
 		private final Map<BlockPos, BlockState> originals;
-		private final int requiredHits;
-		private final int clusterStages;
+		private int requiredHits;
+		private int clusterStages;
 		private final Vec3 offset;
 		private int hits = 0;
 
@@ -427,6 +457,30 @@ public final class OreCracker {
 
 		Vec3 offset() {
 			return offset;
+		}
+
+		/**
+		 * Remove ores that were manually broken and recalculate requirements.
+		 * @return true if session still has ores to crack, false if empty
+		 */
+		boolean pruneAndRecalculate(Level level) {
+			// Remove positions that are no longer ores (keep cluster position - it's now a cluster block)
+			originals.entrySet().removeIf(entry -> {
+				BlockPos pos = entry.getKey();
+				if (pos.equals(key.base())) {
+					return false; // Keep cluster position
+				}
+				return !OreCracker.isOreBlock(level.getBlockState(pos));
+			});
+
+			if (originals.isEmpty()) {
+				return false;
+			}
+
+			// Recalculate based on remaining ores
+			requiredHits = OreCracker.computeRequiredCracks(originals.size());
+			clusterStages = OreCracker.computeClusterStages(originals.size());
+			return true;
 		}
 	}
 }
