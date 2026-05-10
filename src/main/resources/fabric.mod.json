@@ -20,6 +20,9 @@
 		],
 		"client": [
 			"mod.crackt.CracktClient"
+		],
+		"jade": [
+			"mod.crackt.compat.JadeCompat"
 		]
 	},
 	"mixins": [

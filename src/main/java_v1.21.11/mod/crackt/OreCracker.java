@@ -48,6 +48,48 @@ public final class OreCracker {
 		PlayerBlockBreakEvents.AFTER.register(OreCracker::afterBreak);
 	}
 
+	public static boolean isPreviewTarget(BlockState state) {
+		return state.is(CracktBlocks.CRACKING_CLUSTER) || isOreBlock(state);
+	}
+
+	public static PreviewData getPreviewData(Level level, BlockPos pos, BlockState state) {
+		if (level.isClientSide()) {
+			return PreviewData.EMPTY;
+		}
+
+		boolean isCluster = state.is(CracktBlocks.CRACKING_CLUSTER);
+		if (!isCluster && !isOreBlock(state)) {
+			return PreviewData.EMPTY;
+		}
+
+		Session session = findSession(level, pos);
+		if (session == null) {
+			session = buildSession(level, pos, state, isCluster);
+		}
+		if (session == null) {
+			return PreviewData.EMPTY;
+		}
+
+		Map<BlockPos, BlockState> originals = session.collectPresentOriginals(level);
+		if (originals.isEmpty()) {
+			return PreviewData.EMPTY;
+		}
+
+		BlockState displayState = session.getOriginal(session.key().base());
+		if (displayState == null) {
+			displayState = session.anyOriginal();
+		}
+		if (displayState == null) {
+			displayState = state;
+		}
+
+		return new PreviewData(originals, displayState, session.hits(), session.requiredHits());
+	}
+
+	public static Map<BlockPos, BlockState> getPreviewOriginals(Level level, BlockPos pos, BlockState state) {
+		return getPreviewData(level, pos, state).originals();
+	}
+
 	private static boolean beforeBreak(Level level, Player player, BlockPos pos, BlockState state, /* nullable */ Object blockEntity) {
 		if (level.isClientSide()) return true;
 		if (PROCESSING.get()) return true;
@@ -255,10 +297,11 @@ public final class OreCracker {
 		if (level.getBlockEntity(base) instanceof CrackingClusterBlockEntity cluster) {
 			cluster.setDisplayState(original);
 			cluster.setDisplayOffset(session.offset());
+			cluster.setProgress(session.hits(), session.requiredHits());
 			cluster.setChanged();
 			// sync to clients
 			if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
-				CracktNetworking.syncCrackingCluster(serverLevel, base, original, session.offset());
+				CracktNetworking.syncCrackingCluster(serverLevel, base, original, session.offset(), session.hits(), session.requiredHits());
 				level.sendBlockUpdated(base, previous, clusterState, Block.UPDATE_CLIENTS);
 				level.blockEntityChanged(base);
 			}
@@ -407,6 +450,14 @@ public final class OreCracker {
 
 	private record SessionKey(ResourceKey<Level> dimension, BlockPos base) {}
 
+	public record PreviewData(Map<BlockPos, BlockState> originals, BlockState displayState, int hits, int requiredHits) {
+		private static final PreviewData EMPTY = new PreviewData(Map.of(), Blocks.AIR.defaultBlockState(), 0, 0);
+
+		public boolean isEmpty() {
+			return originals.isEmpty();
+		}
+	}
+
 	private static final class Session {
 		private final SessionKey key;
 		private final Map<BlockPos, BlockState> originals;
@@ -451,12 +502,28 @@ public final class OreCracker {
 			return hits;
 		}
 
+		int requiredHits() {
+			return requiredHits;
+		}
+
 		int clusterStages() {
 			return clusterStages;
 		}
 
 		Vec3 offset() {
 			return offset;
+		}
+
+		Map<BlockPos, BlockState> collectPresentOriginals(Level level) {
+			Map<BlockPos, BlockState> present = new HashMap<>();
+			for (Map.Entry<BlockPos, BlockState> entry : originals.entrySet()) {
+				BlockPos pos = entry.getKey();
+				if (!pos.equals(key.base()) && !OreCracker.isOreBlock(level.getBlockState(pos))) {
+					continue;
+				}
+				present.put(pos.immutable(), entry.getValue());
+			}
+			return present;
 		}
 
 		/**

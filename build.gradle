@@ -44,6 +44,12 @@ repositories {
 	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
 	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
 	// for more information about repositories.
+	maven {
+		url = "https://cursemaven.com"
+	}
+	maven {
+		url = "https://maven4.bai.lol"
+	}
 }
 
 loom {
@@ -111,6 +117,9 @@ dependencies {
 		implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 		implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 	}
+
+	modCompileOnly "mcp.mobius.waila:wthit-api:fabric-18.2.2"
+	modCompileOnly "curse.maven:jade-324717:7676480"
 	
 }
 

@@ -30,19 +30,19 @@ public final class CracktNetworking {
 		// no-op for now
 	}
 
-	public static void syncCrackingCluster(ServerLevel level, BlockPos pos, BlockState state, net.minecraft.world.phys.Vec3 offset) {
-		CrackingClusterDisplay payload = new CrackingClusterDisplay(pos, state, offset);
+	public static void syncCrackingCluster(ServerLevel level, BlockPos pos, BlockState state, net.minecraft.world.phys.Vec3 offset, int hits, int requiredHits) {
+		CrackingClusterDisplay payload = new CrackingClusterDisplay(pos, state, offset, hits, requiredHits);
 		for (ServerPlayer player : PlayerLookup.tracking(level, pos)) {
 			ServerPlayNetworking.send(player, payload);
 		}
 	}
 
-	public record CrackingClusterDisplay(BlockPos pos, BlockState state, net.minecraft.world.phys.Vec3 offset) implements CustomPacketPayload {
+	public record CrackingClusterDisplay(BlockPos pos, BlockState state, net.minecraft.world.phys.Vec3 offset, int hits, int requiredHits) implements CustomPacketPayload {
 		public static final CustomPacketPayload.Type<CrackingClusterDisplay> ID = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(Crackt.MOD_ID, "cracking_cluster_display"));
 		public static final StreamCodec<FriendlyByteBuf, CrackingClusterDisplay> CODEC = CustomPacketPayload.codec(CrackingClusterDisplay::write, CrackingClusterDisplay::new);
 
 		public CrackingClusterDisplay(FriendlyByteBuf buf) {
-			this(buf.readBlockPos(), Block.stateById(buf.readVarInt()), new net.minecraft.world.phys.Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble()));
+			this(buf.readBlockPos(), Block.stateById(buf.readVarInt()), new net.minecraft.world.phys.Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble()), buf.readVarInt(), buf.readVarInt());
 		}
 
 		private void write(FriendlyByteBuf buf) {
@@ -51,6 +51,8 @@ public final class CracktNetworking {
 			buf.writeDouble(offset.x);
 			buf.writeDouble(offset.y);
 			buf.writeDouble(offset.z);
+			buf.writeVarInt(hits);
+			buf.writeVarInt(requiredHits);
 		}
 
 		@Override

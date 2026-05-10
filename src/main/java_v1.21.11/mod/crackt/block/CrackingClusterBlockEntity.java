@@ -21,6 +21,8 @@ import net.minecraft.world.phys.Vec3;
 public class CrackingClusterBlockEntity extends BlockEntity {
 	private BlockState displayState;
 	private Vec3 displayOffset = Vec3.ZERO;
+	private int hits;
+	private int requiredHits;
 
 	public CrackingClusterBlockEntity(BlockPos pos, BlockState state) {
 		super(CracktBlocks.CRACKING_CLUSTER_ENTITY, pos, state);
@@ -48,6 +50,20 @@ public class CrackingClusterBlockEntity extends BlockEntity {
 		setChanged();
 	}
 
+	public int getHits() {
+		return hits;
+	}
+
+	public int getRequiredHits() {
+		return requiredHits;
+	}
+
+	public void setProgress(int hits, int requiredHits) {
+		this.hits = hits;
+		this.requiredHits = requiredHits;
+		setChanged();
+	}
+
 	private BlockState defaultState() {
 		return Blocks.IRON_ORE.defaultBlockState();
 	}
@@ -63,6 +79,12 @@ public class CrackingClusterBlockEntity extends BlockEntity {
 			writer.putDouble("off_y", displayOffset.y);
 			writer.putDouble("off_z", displayOffset.z);
 		}
+		if (hits > 0) {
+			writer.putInt("hits", hits);
+		}
+		if (requiredHits > 0) {
+			writer.putInt("required_hits", requiredHits);
+		}
 	}
 
 	@Override
@@ -74,6 +96,8 @@ public class CrackingClusterBlockEntity extends BlockEntity {
 		double oy = reader.getDoubleOr("off_y", 0.0);
 		double oz = reader.getDoubleOr("off_z", 0.0);
 		displayOffset = new Vec3(ox, oy, oz);
+		hits = reader.getIntOr("hits", 0);
+		requiredHits = reader.getIntOr("required_hits", 0);
 	}
 
 	@Override

@@ -22,9 +22,10 @@ public class CracktClient implements ClientModInitializer {
 				if (context.client().level.getBlockEntity(payload.pos()) instanceof CrackingClusterBlockEntity cluster) {
 					cluster.setDisplayState(payload.state());
 					cluster.setDisplayOffset(payload.offset());
+					cluster.setProgress(payload.hits(), payload.requiredHits());
 					return;
 				}
-				pendingClusterDisplays.put(payload.pos(), new ClusterDisplay(payload.state(), payload.offset()));
+				pendingClusterDisplays.put(payload.pos(), new ClusterDisplay(payload.state(), payload.offset(), payload.hits(), payload.requiredHits()));
 			});
 		});
 
@@ -40,6 +41,7 @@ public class CracktClient implements ClientModInitializer {
 				if (be instanceof CrackingClusterBlockEntity cluster) {
 					cluster.setDisplayState(entry.getValue().state());
 					cluster.setDisplayOffset(entry.getValue().offset());
+					cluster.setProgress(entry.getValue().hits(), entry.getValue().requiredHits());
 					ClientDisplayCache.put(entry.getKey(), entry.getValue().state());
 					return true;
 				}
@@ -48,5 +50,5 @@ public class CracktClient implements ClientModInitializer {
 		});
 	}
 
-	private record ClusterDisplay(net.minecraft.world.level.block.state.BlockState state, net.minecraft.world.phys.Vec3 offset) {}
+	private record ClusterDisplay(net.minecraft.world.level.block.state.BlockState state, net.minecraft.world.phys.Vec3 offset, int hits, int requiredHits) {}
 }

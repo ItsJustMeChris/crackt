@@ -1,0 +1,9 @@
+{
+	"crackt:plugin": {
+		"entrypoints": {
+			"common": "mod.crackt.compat.WthitCommonCompat",
+			"client": "mod.crackt.compat.WthitClientCompat"
+		},
+		"side": "*"
+	}
+}
