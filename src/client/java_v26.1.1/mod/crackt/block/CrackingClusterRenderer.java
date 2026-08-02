@@ -1,18 +1,18 @@
 package mod.crackt.block;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.SheetedDecalTextureGenerator;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.block.BlockModelResolver;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
+import net.minecraft.client.renderer.block.model.BlockDisplayContext;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
-import net.minecraft.client.renderer.state.CameraRenderState;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.resources.model.ModelBakery;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import mod.crackt.ClientDisplayCache;
@@ -21,7 +21,13 @@ import mod.crackt.ClientDisplayCache;
  * Renders the cracking ore core by scaling the original ore's model uniformly.
  */
 public class CrackingClusterRenderer implements BlockEntityRenderer<CrackingClusterBlockEntity, CrackingClusterRenderState> {
-	public CrackingClusterRenderer(BlockEntityRendererProvider.Context ignored) {}
+	private static final BlockDisplayContext BLOCK_DISPLAY_CONTEXT = BlockDisplayContext.create();
+
+	private final BlockModelResolver blockModelResolver;
+
+	public CrackingClusterRenderer(BlockEntityRendererProvider.Context context) {
+		this.blockModelResolver = context.blockModelResolver();
+	}
 
 	@Override
 	public CrackingClusterRenderState createRenderState() {
@@ -43,6 +49,11 @@ public class CrackingClusterRenderer implements BlockEntityRenderer<CrackingClus
 		}
 		state.level = cluster.getLevel() instanceof ClientLevel clientLevel ? clientLevel : null;
 		state.offset = cluster.getDisplayOffset();
+		if (display != null) {
+			this.blockModelResolver.update(state.blockModel, display, BLOCK_DISPLAY_CONTEXT);
+		} else {
+			state.blockModel.clear();
+		}
 	}
 
 	@Override
@@ -56,20 +67,13 @@ public class CrackingClusterRenderer implements BlockEntityRenderer<CrackingClus
 		pose.scale(state.scale, state.scale, state.scale);
 		pose.translate(-0.5, -0.5, -0.5);
 
-		collector.submitBlock(pose, state.displayState, state.light, OverlayTexture.NO_OVERLAY, 0);
+		state.blockModel.submit(pose, collector, state.light, OverlayTexture.NO_OVERLAY, 0);
 
 		if (state.breakProgress != null && state.level != null) {
 			ModelFeatureRenderer.CrumblingOverlay breakOverlay = state.breakProgress;
-			RenderType destroyType = ModelBakery.DESTROY_TYPES.get(breakOverlay.progress());
-			PoseStack overlayStack = new PoseStack();
-			overlayStack.last().set(pose.last()); // start from current world transform (includes block pos)
-			SheetedDecalTextureGenerator decalBuffer = new SheetedDecalTextureGenerator(
-				Minecraft.getInstance().renderBuffers().crumblingBufferSource().getBuffer(destroyType),
-				breakOverlay.cameraPose(),
-				1.0f
-			);
-			Minecraft.getInstance().getBlockRenderer()
-				.renderBreakingTexture(state.displayState, state.blockPos, state.level, overlayStack, decalBuffer);
+			BlockStateModel breakModel = Minecraft.getInstance().getModelManager()
+				.getBlockStateModelSet().get(state.displayState);
+			collector.submitBreakingBlockModel(pose, breakModel, state.displayState.getSeed(state.blockPos), breakOverlay.progress());
 		}
 		pose.popPose();
 	}

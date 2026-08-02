@@ -43,6 +43,32 @@ public final class OreCracker {
 
 	private OreCracker() {}
 
+	/**
+	 * Read-only snapshot of an active vein-cracking session, exposed for external
+	 * integrations (Jade). Kept deliberately small so it can be handed straight to a
+	 * tooltip provider without leaking the mutable Session.
+	 */
+	public record Progress(int hits, int requiredHits, int oreCount, BlockState original) {
+		public float fraction() {
+			return requiredHits <= 0 ? 0.0f : Mth.clamp((float) hits / (float) requiredHits, 0.0f, 1.0f);
+		}
+	}
+
+	/**
+	 * Look up the cracking session covering {@code pos}.
+	 * Server-side only; returns null when no session is tracking that position.
+	 */
+	public static Progress progressAt(Level level, BlockPos pos) {
+		if (level == null || pos == null || level.isClientSide()) return null;
+		Session session = findSession(level, pos);
+		if (session == null) return null;
+		BlockState original = session.getOriginal(pos);
+		if (original == null) {
+			original = session.anyOriginal();
+		}
+		return new Progress(session.hits(), session.requiredHits, session.originals.size(), original);
+	}
+
 	public static void register() {
 		PlayerBlockBreakEvents.BEFORE.register(OreCracker::beforeBreak);
 		PlayerBlockBreakEvents.AFTER.register(OreCracker::afterBreak);

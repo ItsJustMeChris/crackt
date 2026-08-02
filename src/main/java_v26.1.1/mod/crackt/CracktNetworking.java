@@ -23,7 +23,7 @@ public final class CracktNetworking {
 	public static void registerPayloads() {
 		if (payloadsRegistered) return;
 		payloadsRegistered = true;
-		PayloadTypeRegistry.playS2C().register(CrackingClusterDisplay.ID, CrackingClusterDisplay.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(CrackingClusterDisplay.ID, CrackingClusterDisplay.CODEC);
 	}
 
 	public static void registerServerReceivers() {

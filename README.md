@@ -8,12 +8,14 @@ Vein-aware ore cracking for Fabric. Swing a pick at any ore; a shrinking core ap
 - Clean drops: final breaking uses the original ore state for correct drops.
 - Cluster-aware visuals: the core shrinks to 50% scale and shifts toward the vein mass as you work.
 - Client-light: no config screens; only a small BER and payload for syncing the shrinking core.
+- Jade integration (optional): hovering a cracking cluster shows the original ore's name and icon plus a crack-progress bar, instead of the placeholder block.
 
 ## Requirements
-- Minecraft `1.20.1` / `1.21.8` / `1.21.10` / `1.21.11`
-- Fabric Loader `>=0.18.1`
+- Minecraft `1.20.1` / `1.21.8` / `1.21.10` / `1.21.11` / `26.1.1`
+- Fabric Loader `>=0.18.1` (`>=0.19.3` on 26.1.1)
 - Fabric API for your MC version
-- Java 21 (use Java 17 when building the 1.20.x profile)
+- Java 21 (Java 17 for the 1.20.x profile, Java 25 for 26.1.1)
+- Optional: [Jade](https://modrinth.com/mod/jade) — not required, and not bundled
 
 ## Install (players)
 1. Install Fabric Loader for your Minecraft version.
@@ -31,17 +33,24 @@ Vein-aware ore cracking for Fabric. Swing a pick at any ore; a shrinking core ap
 ```sh
 # Switch versions (writes to gradle.properties)
 ./gradlew useMc12111
+# ./gradlew useMc2611
 # ./gradlew useMc1218
 # ./gradlew useMc12110
 # ./gradlew useMc1201
 
 ./gradlew build
 ```
+Each profile pins its own Minecraft, Fabric, Loom and Jade versions, and switching
+profiles clears the previous one's toolchain settings, so they can be run in any order.
+`26.1.1` is deobfuscated (no mappings) and targets Java 25.
 Outputs are under `build/libs/` (`-dev` jars are for development, the remapped jar is for players/servers).
 
 ## Development notes
 - Uses official Mojang mappings; see `AGENTS.md` for cache and inspection tips.
-- Ore cracking logic lives in `src/main/java/mod/crackt/OreCracker.java`.
+- Ore cracking logic lives in `src/main/java_v*/mod/crackt/OreCracker.java`.
+- Jade compat lives in `src/main/java_v*/mod/crackt/compat/jade/` (entrypoint, loaded on
+  servers too) and `src/client/java_v*/mod/crackt/compat/jade/` (the tooltip itself).
+  Jade is a `compileOnly` dependency, so the mod runs fine without it.
 
 ## Known limits
 - Hard cap of 128 ores per vein scan.
