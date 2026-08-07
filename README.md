@@ -60,3 +60,9 @@ Outputs are under `build/libs/` (`-dev` jars are for development, the remapped j
 ## Known limits
 - Hard cap of 128 ores per vein scan.
 - No configuration file yet; behavior is fixed (shift-to-skip, partial payout on cluster break, caps).
+
+## Thank you. 
+
+polaron-games https://github.com/polaron-games
+
+Sphvy https://github.com/Sphvy
