@@ -11,7 +11,7 @@ Vein-aware ore cracking for Fabric. Swing a pick at any ore; a shrinking core ap
 - Jade integration (optional): hovering a cracking cluster shows the original ore's name and icon plus a crack-progress bar, instead of the placeholder block.
 
 ## Requirements
-- Minecraft `1.20.1` / `1.21.8` / `1.21.10` / `1.21.11` / `26.1` / `26.1.1` / `26.1.2` / `26.2` / `26.3-snapshot-6`
+- Minecraft `1.20.1` / `1.21.8` / `1.21.10` / `1.21.11` / `26.1` / `26.1.1` / `26.1.2` / `26.2` / `26.3-snapshot-7`
 - Fabric Loader `>=0.18.1` (`>=0.19.3` on 26.x)
 - Fabric API for your MC version
 - Java 21 (Java 17 for the 1.20.x profile, Java 25 for the 26.x profiles)
@@ -41,7 +41,7 @@ Vein-aware ore cracking for Fabric. Swing a pick at any ore; a shrinking core ap
 # ./gradlew useMc2611
 # ./gradlew useMc2612
 # ./gradlew useMc262
-# ./gradlew useMc263Snapshot6
+# ./gradlew useMc263Snapshot7
 
 ./gradlew build
 ```

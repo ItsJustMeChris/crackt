@@ -44,3 +44,6 @@ replay_*.log
 
 # env
 .env
+
+changelogs/
+tools/
