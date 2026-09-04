@@ -69,8 +69,25 @@ public class CrackingClusterBlock extends Block implements EntityBlock {
 
 	@Override
 	public float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
-		// Match iron ore hardness so vanilla break speed expectations stay intact.
-		return Blocks.IRON_ORE.defaultBlockState().getDestroyProgress(player, level, pos);
+		// Mirror the ore this cluster stands in for. Hardcoding iron ore gave every cluster
+		// iron's stone-tier requirement, so a wooden pick that had just mined coal could no
+		// longer crack the cluster it created.
+		return originalOre(level, pos).getDestroyProgress(player, level, pos);
+	}
+
+	/**
+	 * The ore state this cluster stands in for, falling back to iron ore when the block
+	 * entity is missing or has not synced yet (matching the block entity's own default).
+	 */
+	private static BlockState originalOre(BlockGetter level, BlockPos pos) {
+		if (level.getBlockEntity(pos) instanceof CrackingClusterBlockEntity cluster) {
+			BlockState display = cluster.getDisplayOrDefault();
+			// A display state pointing back at a cluster would recurse until the stack blows.
+			if (!(display.getBlock() instanceof CrackingClusterBlock)) {
+				return display;
+			}
+		}
+		return Blocks.IRON_ORE.defaultBlockState();
 	}
 
 	@Override

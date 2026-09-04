@@ -105,6 +105,14 @@ public final class OreCracker {
 			return true;
 		}
 
+		// Vanilla gives an under-tier tool no drops at all, and cracking must not launder them:
+		// a wooden pick can still break diamond ore, and the vein would then be collected through
+		// the cluster. Bow out so vanilla breaks the block exactly as it would without this mod.
+		BlockState harvestState = isCluster ? clusterOre(level, pos) : state;
+		if (harvestState != null && !player.hasCorrectToolForDrops(harvestState)) {
+			return true;
+		}
+
 		Session session = findSession(level, pos);
 		if (session == null) {
 			session = buildSession(level, pos, state, isCluster);
@@ -165,6 +173,15 @@ public final class OreCracker {
 
 	private static void afterBreak(Level level, Player player, BlockPos pos, BlockState state, /* nullable */ Object blockEntity) {
 		// No-op; handled entirely in beforeBreak.
+	}
+
+	/**
+	 * The ore a cracking cluster is standing in for, or null when its block entity is missing.
+	 */
+	private static BlockState clusterOre(Level level, BlockPos pos) {
+		return level.getBlockEntity(pos) instanceof CrackingClusterBlockEntity cluster
+			? cluster.getDisplayOrDefault()
+			: null;
 	}
 
 	private static Session buildSession(Level level, BlockPos origin, BlockState state, boolean fromClusterBlock) {
