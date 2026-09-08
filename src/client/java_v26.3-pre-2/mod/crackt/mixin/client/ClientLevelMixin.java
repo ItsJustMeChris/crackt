@@ -20,7 +20,7 @@ public abstract class ClientLevelMixin {
 		return crackt$swapState((ClientLevel)(Object)this, state, pos);
 	}
 
-	@ModifyVariable(method = "addBreakingBlockEffect", at = @At(value = "STORE"), ordinal = 0)
+	@ModifyVariable(method = "addBreakingBlockEffects", at = @At(value = "STORE"), ordinal = 0)
 	private BlockState crackt$swapHitStateLocal(BlockState state, BlockPos pos, net.minecraft.core.Direction side) {
 		return crackt$swapState((ClientLevel)(Object)this, state, pos);
 	}
